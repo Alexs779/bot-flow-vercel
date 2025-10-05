@@ -8,24 +8,11 @@ const readConfig = (): AuthControllerConfig | null => {
   const botToken = process.env.BOT_TOKEN ?? ''
   const jwtSecret = process.env.JWT_SECRET ?? ''
 
-  console.log('Environment variables check:', {
-    hasBotToken: !!botToken,
-    botTokenLength: botToken.length,
-    hasJwtSecret: !!jwtSecret,
-    jwtSecretLength: jwtSecret.length,
-    allEnvVars: Object.keys(process.env).filter(key =>
-      key.includes('TELEGRAM') || key.includes('BOT') || key.includes('JWT')
-    )
-  })
-
   const maxAgeRaw = process.env.TELEGRAM_AUTH_MAX_AGE_SECONDS
   const maxAuthAgeSeconds = maxAgeRaw ? Number.parseInt(maxAgeRaw, 10) : undefined
 
   if (!botToken || !jwtSecret) {
-    console.error('Missing required environment variables:', {
-      hasBotToken: !!botToken,
-      hasJwtSecret: !!jwtSecret
-    })
+    console.error('Missing required environment variables: BOT_TOKEN or JWT_SECRET')
     return null
   }
 
@@ -41,8 +28,7 @@ const extractInitData = (req: VercelRequest): unknown => {
     try {
       const parsed = JSON.parse(req.body) as Record<string, unknown>
       return parsed.initData
-    } catch (error) {
-      console.warn('Failed to parse raw body as JSON', error)
+    } catch {
       return null
     }
   }
@@ -61,36 +47,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, error: 'Method not allowed.' })
   }
 
-  console.log('Auth request received:', {
-    method: req.method,
-    headers: req.headers,
-    body: req.body
-  })
-
   const config = readConfig()
   if (!config) {
-    console.error('Server configuration error. Missing BOT_TOKEN or JWT_SECRET')
     return res.status(500).json({ ok: false, error: 'Server configuration error.' })
   }
 
-  console.log('Config loaded successfully:', {
-    hasBotToken: !!config.botToken,
-    hasJwtSecret: !!config.jwtSecret,
-    maxAuthAgeSeconds: config.maxAuthAgeSeconds
-  })
-
   const initData = extractInitData(req)
-  console.log('Extracted init data:', {
-    hasInitData: !!initData,
-    initDataType: typeof initData,
-    initDataLength: initData ? (typeof initData === 'string' ? initData.length : 'N/A') : 'N/A'
-  })
-
   const result = await authenticateTelegramUser(initData, config)
-  console.log('Authentication result:', {
-    status: result.status,
-    ok: 'ok' in result.body ? result.body.ok : 'N/A'
-  })
 
   return res.status(result.status).json(result.body)
 }
