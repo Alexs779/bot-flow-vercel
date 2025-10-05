@@ -117,34 +117,10 @@ export const validateTelegramInitData = (
     throw new TelegramAuthVerificationError("Telegram init data must be a non-empty string.", 400)
   }
 
-  // ВРЕМЕННОЕ РЕШЕНИЕ: если BOT_TOKEN не настроен, пропускаем валидацию подписи
-  if (!botToken || botToken === 'placeholder') {
-    console.warn('Bot token is missing or placeholder, skipping signature validation for testing')
-    const payload = parseInitData(initData)
-    const hash = payload.hash
-    const rawAuthDate = payload.auth_date
-    
-    if (!hash) {
-      throw new TelegramAuthVerificationError("Telegram init data hash is missing.", 400)
-    }
-    
-    if (!rawAuthDate) {
-      throw new TelegramAuthVerificationError("Telegram auth_date field is missing.", 400)
-    }
-    
-    const authDate = Number.parseInt(rawAuthDate, 10)
-    if (!Number.isFinite(authDate)) {
-      throw new TelegramAuthVerificationError("Telegram auth_date field is invalid.", 400)
-    }
-    
-    const user = parseUser(payload.user)
-    
-    return {
-      authDate,
-      hash,
-      payload,
-      user,
-    }
+  // Проверяем наличие BOT_TOKEN
+  if (!botToken) {
+    console.error('Bot token is missing')
+    throw new TelegramAuthVerificationError("Telegram bot token is not configured.", 500)
   }
 
   const payload = parseInitData(initData)
@@ -187,38 +163,34 @@ export const validateTelegramInitData = (
     throw new TelegramAuthVerificationError("Telegram auth_date is in the future.")
   }
 
-  // ВРЕМЕННО ОТКЛЮЧАЕМ ВАЛИДАЦИЮ ПОДПИСИ ДЛЯ ТЕСТИРОВАНИЯ
-  console.warn('⚠️ SIGNATURE VALIDATION TEMPORARILY DISABLED FOR TESTING ⚠️')
-  
   const secretKey = createSecretKey(botToken)
   const dataCheckString = buildDataCheckString(payload)
   const computedHash = computeVerificationHash(dataCheckString, secretKey)
 
-  console.log('Hash validation (SKIPPED):', {
+  console.log('Hash validation:', {
     providedHash: hash,
     computedHash,
     dataCheckString,
     hashMatch: hash === computedHash
   })
 
-  // Закомментируем проверку подписи для тестирования
-  // const providedHashBuffer = Buffer.from(hash, "hex")
-  // const computedHashBuffer = Buffer.from(computedHash, "hex")
+  const providedHashBuffer = Buffer.from(hash, "hex")
+  const computedHashBuffer = Buffer.from(computedHash, "hex")
 
-  // console.log('Buffer comparison:', {
-  //   providedHashLength: providedHashBuffer.length,
-  //   computedHashLength: computedHashBuffer.length,
-  //   buffersEqual: providedHashBuffer.length === computedHashBuffer.length &&
-  //               crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
-  // })
+  console.log('Buffer comparison:', {
+    providedHashLength: providedHashBuffer.length,
+    computedHashLength: computedHashBuffer.length,
+    buffersEqual: providedHashBuffer.length === computedHashBuffer.length &&
+                crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
+  })
 
-  // if (
-  //   providedHashBuffer.length !== computedHashBuffer.length ||
-  //   !crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
-  // ) {
-  //   console.error('Hash validation failed')
-  //   throw new TelegramAuthVerificationError("Telegram auth signature is invalid.")
-  // }
+  if (
+    providedHashBuffer.length !== computedHashBuffer.length ||
+    !crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
+  ) {
+    console.error('Hash validation failed')
+    throw new TelegramAuthVerificationError("Telegram auth signature is invalid.")
+  }
 
   const user = parseUser(payload.user)
   console.log('User parsed successfully:', { userId: user.id, firstName: user.first_name })

@@ -5,13 +5,13 @@ import {
 } from '../../server/controllers/authController.js'
 
 const readConfig = (): AuthControllerConfig | null => {
-  const botToken = process.env.BOT_TOKEN ?? 'placeholder'
-  const jwtSecret = process.env.JWT_SECRET ?? 'placeholder-secret'
+  const botToken = process.env.BOT_TOKEN ?? ''
+  const jwtSecret = process.env.JWT_SECRET ?? ''
 
   console.log('Environment variables check:', {
-    hasBotToken: !!process.env.BOT_TOKEN,
+    hasBotToken: !!botToken,
     botTokenLength: botToken.length,
-    hasJwtSecret: !!process.env.JWT_SECRET,
+    hasJwtSecret: !!jwtSecret,
     jwtSecretLength: jwtSecret.length,
     allEnvVars: Object.keys(process.env).filter(key =>
       key.includes('TELEGRAM') || key.includes('BOT') || key.includes('JWT')
@@ -21,9 +21,12 @@ const readConfig = (): AuthControllerConfig | null => {
   const maxAgeRaw = process.env.TELEGRAM_AUTH_MAX_AGE_SECONDS
   const maxAuthAgeSeconds = maxAgeRaw ? Number.parseInt(maxAgeRaw, 10) : undefined
 
-  // ВРЕМЕННОЕ РЕШЕНИЕ: используем заглушки, если переменные окружения не заданы
-  if (!process.env.BOT_TOKEN || !process.env.JWT_SECRET) {
-    console.warn('Using placeholder values for missing environment variables')
+  if (!botToken || !jwtSecret) {
+    console.error('Missing required environment variables:', {
+      hasBotToken: !!botToken,
+      hasJwtSecret: !!jwtSecret
+    })
+    return null
   }
 
   return {
