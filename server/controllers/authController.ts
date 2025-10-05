@@ -1,10 +1,10 @@
-import { createSessionToken } from "../services/jwtService"
-import { findOrCreateUserByTelegramId } from "../services/userService"
+import { createSessionToken } from "../services/jwtService.js"
+import { findOrCreateUserByTelegramId } from "../services/userService.js"
 import {
   TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
   TelegramAuthVerificationError,
   validateTelegramInitData,
-} from "../services/telegramValidation"
+} from "../services/telegramValidation.js"
 
 export type AuthControllerConfig = {
   botToken: string

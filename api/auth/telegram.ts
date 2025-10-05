@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   authenticateTelegramUser,
   type AuthControllerConfig,
-} from '../../server/controllers/authController'
+} from '../../server/controllers/authController.js'
 
 const readConfig = (): AuthControllerConfig | null => {
   const botToken = process.env.BOT_TOKEN ?? ''

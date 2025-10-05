@@ -30,6 +30,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.5",
     "@types/supertest": "^2.0.16",
+    "@vercel/node": "^5.3.24",
     "@vitejs/plugin-react-swc": "^4.0.1",
     "eslint": "^9.35.0",
     "eslint-plugin-react-hooks": "^5.2.0",
