@@ -1,6 +1,9 @@
 {
   "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
+  "env": {
+    "VITE_API_BASE_URL": "https://bot-flow-vercel.vercel.app"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
