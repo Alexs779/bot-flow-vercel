@@ -1140,15 +1140,27 @@ const renderEvents = () => (
               <dl className="log-panel__meta">
                 <div>
                   <dt>{ru.common.logsAuthStatus}</dt>
-                  <dd>{authStatus}</dd>
+                  <dd style={{ color: authStatus === 'authenticated' ? 'green' : authStatus === 'error' ? 'red' : 'orange' }}>
+                    {authStatus}
+                  </dd>
                 </div>
                 <div>
                   <dt>{ru.common.logsSession}</dt>
-                  <dd>{sessionToken ?? "-"}</dd>
+                  <dd style={{ wordBreak: 'break-all', fontSize: '10px' }}>
+                    {sessionToken ?? "-"}
+                  </dd>
                 </div>
                 <div>
                   <dt>{ru.common.logsError}</dt>
-                  <dd>{authError ?? "-"}</dd>
+                  <dd style={{ color: 'red', wordBreak: 'break-word' }}>
+                    {authError ?? "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>API URL</dt>
+                  <dd style={{ wordBreak: 'break-all', fontSize: '10px' }}>
+                    {API_BASE_URL}
+                  </dd>
                 </div>
               </dl>
               <section className="log-panel__section">
