@@ -34,12 +34,15 @@ export type TelegramValidationResult = {
 }
 
 const createSecretKey = (botToken: string): Buffer => {
+  const trimmedToken = botToken.trim()
   console.log('Creating secret key with bot token:', {
     hasBotToken: !!botToken,
-    botTokenLength: botToken?.length || 0,
-    botTokenPrefix: botToken?.substring(0, 10) + '...'
+    originalLength: botToken?.length || 0,
+    trimmedLength: trimmedToken.length,
+    botTokenPrefix: trimmedToken.substring(0, 10) + '...',
+    hasDifference: botToken.length !== trimmedToken.length
   })
-  return crypto.createHmac("sha256", botToken).update("WebAppData").digest()
+  return crypto.createHmac("sha256", trimmedToken).update("WebAppData").digest()
 }
 
 const computeVerificationHash = (dataCheckString: string, secretKey: Buffer): string => {
@@ -167,28 +170,35 @@ export const validateTelegramInitData = (
   const dataCheckString = buildDataCheckString(payload)
   const computedHash = computeVerificationHash(dataCheckString, secretKey)
 
-  console.log('Hash validation:', {
+  console.log('Hash validation details:', {
     providedHash: hash,
     computedHash,
-    dataCheckString,
-    hashMatch: hash === computedHash
+    hashMatch: hash === computedHash,
+    dataCheckStringLength: dataCheckString.length,
+    dataCheckStringPreview: dataCheckString.substring(0, 100) + '...',
+    payloadKeys: Object.keys(payload).sort()
   })
 
   const providedHashBuffer = Buffer.from(hash, "hex")
   const computedHashBuffer = Buffer.from(computedHash, "hex")
 
+  const buffersEqual = providedHashBuffer.length === computedHashBuffer.length &&
+                      crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
+
   console.log('Buffer comparison:', {
     providedHashLength: providedHashBuffer.length,
     computedHashLength: computedHashBuffer.length,
-    buffersEqual: providedHashBuffer.length === computedHashBuffer.length &&
-                crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
+    buffersEqual,
+    providedHashHex: hash,
+    computedHashHex: computedHash
   })
 
-  if (
-    providedHashBuffer.length !== computedHashBuffer.length ||
-    !crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
-  ) {
-    console.error('Hash validation failed')
+  if (!buffersEqual) {
+    console.error('Hash validation failed - detailed info:', {
+      initDataRaw: initData.substring(0, 200) + '...',
+      payloadKeys: Object.keys(payload),
+      dataCheckString: dataCheckString
+    })
     throw new TelegramAuthVerificationError("Telegram auth signature is invalid.")
   }
 
