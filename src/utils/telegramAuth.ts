@@ -56,21 +56,45 @@ export const getTelegramInitData = (
   webApp: TelegramWebApp,
   options?: TelegramAuthValidationOptions,
 ): ValidatedTelegramAuthData => {
+  console.log('getTelegramInitData called with:', {
+    hasWebApp: !!webApp,
+    hasInitData: !!webApp?.initData,
+    initDataLength: webApp?.initData?.length || 0,
+    hasInitDataUnsafe: !!webApp?.initDataUnsafe
+  });
+
   if (!webApp) {
     throw new TelegramAuthError('Telegram WebApp API is not available.');
   }
 
   const initData = webApp.initData;
   if (!initData || typeof initData !== 'string') {
+    console.error('Invalid init data:', {
+      initData,
+      typeofInitData: typeof initData
+    });
     throw new TelegramAuthError('Telegram init data is missing.');
   }
 
   const unsafe = webApp.initDataUnsafe;
   if (!unsafe || typeof unsafe !== 'object') {
+    console.error('Invalid init data unsafe:', {
+      unsafe,
+      typeofUnsafe: typeof unsafe
+    });
     throw new TelegramAuthError('Telegram init data is incomplete.');
   }
 
   const { auth_date: rawAuthDate, hash, user } = unsafe;
+
+  console.log('Init data components:', {
+    hasAuthDate: !!rawAuthDate,
+    authDateValue: rawAuthDate,
+    hasHash: !!hash,
+    hashLength: hash?.length || 0,
+    hasUser: !!user,
+    userId: user?.id
+  });
 
   if (!hash || typeof hash !== 'string') {
     throw new TelegramAuthError('Telegram init data hash is missing.');
@@ -92,6 +116,16 @@ export const getTelegramInitData = (
   const now = options?.now?.() ?? Date.now();
   const maxAgeSeconds = options?.maxAgeSeconds ?? TELEGRAM_AUTH_MAX_AGE_SECONDS;
   const ageSeconds = Math.floor(now / 1000) - authDate;
+  
+  console.log('Date validation:', {
+    authDate,
+    now,
+    ageSeconds,
+    maxAgeSeconds,
+    isExpired: ageSeconds > maxAgeSeconds,
+    isFuture: ageSeconds < 0
+  });
+
   if (ageSeconds > maxAgeSeconds) {
     throw new TelegramAuthError('Telegram init data is too old. Please reopen the WebApp.');
   }
@@ -100,7 +134,7 @@ export const getTelegramInitData = (
     throw new TelegramAuthError('Telegram auth date is in the future.');
   }
 
-  return {
+  const result = {
     initData,
     authDate,
     hash,
@@ -112,4 +146,13 @@ export const getTelegramInitData = (
       avatarUrl: user.photo_url,
     },
   };
+
+  console.log('Returning validated init data:', {
+    hasInitData: !!result.initData,
+    authDate: result.authDate,
+    hasHash: !!result.hash,
+    userId: result.user.id
+  });
+
+  return result;
 };

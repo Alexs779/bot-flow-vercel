@@ -47,12 +47,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, error: 'Method not allowed.' })
   }
 
+  console.log('Auth request received:', {
+    method: req.method,
+    headers: req.headers,
+    body: req.body
+  })
+
   const config = readConfig()
   if (!config) {
+    console.error('Server configuration error. Missing BOT_TOKEN or JWT_SECRET')
     return res.status(500).json({ ok: false, error: 'Server configuration error.' })
   }
 
+  console.log('Config loaded successfully:', {
+    hasBotToken: !!config.botToken,
+    hasJwtSecret: !!config.jwtSecret,
+    maxAuthAgeSeconds: config.maxAuthAgeSeconds
+  })
+
   const initData = extractInitData(req)
+  console.log('Extracted init data:', {
+    hasInitData: !!initData,
+    initDataType: typeof initData,
+    initDataLength: initData ? (typeof initData === 'string' ? initData.length : 'N/A') : 'N/A'
+  })
+
   const result = await authenticateTelegramUser(initData, config)
+  console.log('Authentication result:', {
+    status: result.status,
+    ok: 'ok' in result.body ? result.body.ok : 'N/A'
+  })
+
   return res.status(result.status).json(result.body)
 }

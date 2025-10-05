@@ -340,14 +340,28 @@ function App() {
   const authenticateWithTelegram = useCallback(async () => {
     const webApp = window.Telegram?.WebApp
     if (!webApp) {
+      console.error("Telegram WebApp API is not available")
       setAuthStatus("unsupported")
       setAuthError("Telegram WebApp API is not available. Open the bot directly from Telegram.")
       return
     }
 
+    console.log("Telegram WebApp is available:", {
+      hasInitData: !!webApp.initData,
+      initDataLength: webApp.initData?.length || 0,
+      hasInitDataUnsafe: !!webApp.initDataUnsafe,
+      hasUser: !!webApp.initDataUnsafe?.user
+    })
+
     let initPayload: ValidatedTelegramAuthData
     try {
       initPayload = getTelegramInitData(webApp)
+      console.log("Telegram init data validated successfully:", {
+        hasInitData: !!initPayload.initData,
+        authDate: initPayload.authDate,
+        hasHash: !!initPayload.hash,
+        userId: initPayload.user.id
+      })
     } catch (error) {
       console.error("Telegram init data validation failed", error)
       setAuthStatus("error")
@@ -359,17 +373,35 @@ function App() {
     setAuthError(null)
 
     try {
-      const response = await fetch(resolveApiUrl("/api/auth/telegram"), {
+      const apiUrl = resolveApiUrl("/api/auth/telegram")
+      console.log("Sending auth request to:", apiUrl)
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initData: initPayload.initData }),
       })
 
+      console.log("Auth response received:", {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
+      })
+
       const payload = await response.json().catch(() => ({})) as AuthResponse
+      console.log("Auth response payload:", payload)
+      
       if (!response.ok || !payload.ok || !payload.sessionToken) {
         const message = payload.error ?? `Telegram login failed (status ${response.status}).`
+        console.error("Authentication failed:", message)
         throw new Error(message)
       }
+
+      console.log("Authentication successful:", {
+        hasSessionToken: !!payload.sessionToken,
+        hasUser: !!payload.user,
+        userId: payload.user?.id
+      })
 
       setSessionToken(payload.sessionToken)
       sessionStorage.setItem(STORAGE_KEY_SESSION, payload.sessionToken)
@@ -392,18 +424,27 @@ function App() {
   }, [])
 
   useEffect(() => {
+    console.log("Initializing Telegram WebApp...")
     const webApp = window.Telegram?.WebApp
     if (!webApp) {
+      console.error("Telegram WebApp API is not available in useEffect")
       setAuthStatus("unsupported")
       setAuthError("Telegram WebApp API is not available. Open the bot directly from Telegram.")
       return
     }
 
+    console.log("Telegram WebApp found, initializing...")
     webApp.ready()
     webApp.expand() // Use full-height viewport provided by Telegram
 
     const cachedToken = sessionStorage.getItem(STORAGE_KEY_SESSION)
+    console.log("Checking cached token:", {
+      hasCachedToken: !!cachedToken,
+      tokenLength: cachedToken?.length || 0
+    })
+    
     if (cachedToken) {
+      console.log("Using cached session token")
       setSessionToken(cachedToken)
       setAuthStatus("authenticated")
       setAuthError(null)
@@ -411,19 +452,26 @@ function App() {
       const cachedUserRaw = sessionStorage.getItem(STORAGE_KEY_USER)
       if (cachedUserRaw) {
         try {
-          setTelegramUser(JSON.parse(cachedUserRaw) as TelegramUser)
+          const parsedUser = JSON.parse(cachedUserRaw) as TelegramUser
+          console.log("Using cached user:", {
+            userId: parsedUser.id,
+            firstName: parsedUser.firstName
+          })
+          setTelegramUser(parsedUser)
         } catch (parseError) {
           console.warn("Failed to parse cached Telegram user", parseError)
           sessionStorage.removeItem(STORAGE_KEY_USER)
           setTelegramUser(null)
         }
       } else {
+        console.log("No cached user found")
         setTelegramUser(null)
       }
 
       return
     }
 
+    console.log("No cached token found, starting authentication...")
     void authenticateWithTelegram()
   }, [authenticateWithTelegram])
 
