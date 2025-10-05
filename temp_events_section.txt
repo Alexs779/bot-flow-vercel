@@ -1,0 +1,16 @@
+﻿events__header">
+      <h2 className="events__title">События</h2>
+      <button
+        type="button"
+        className="events__add-button"
+        onClick={() => setIsEventModalOpen(true)}
+      >
+        + Добавить событие
+      </button>
+    </div>
+
+    <EventModal
+      isOpen={isEventModalOpen}
+      onClose={() => setIsEventModalOpen(false)}
+      onAddEvent={handleAddEvent}
+

@@ -1,0 +1,159 @@
+import crypto from "node:crypto"
+
+export const TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = 86400
+
+export class TelegramAuthVerificationError extends Error {
+  readonly statusCode: number
+
+  constructor(message: string, statusCode = 401) {
+    super(message)
+    this.name = "TelegramAuthVerificationError"
+    this.statusCode = statusCode
+  }
+}
+
+export type TelegramInitUser = {
+  id: number
+  first_name: string
+  last_name?: string
+  username?: string
+  language_code?: string
+  photo_url?: string
+}
+
+export type TelegramValidationOptions = {
+  maxAgeSeconds?: number
+  now?: () => number
+}
+
+export type TelegramValidationResult = {
+  authDate: number
+  hash: string
+  payload: Record<string, string>
+  user: TelegramInitUser
+}
+
+const createSecretKey = (botToken: string): Buffer => {
+  return crypto.createHmac("sha256", botToken).update("WebAppData").digest()
+}
+
+const computeVerificationHash = (dataCheckString: string, secretKey: Buffer): string => {
+  return crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex")
+}
+
+const buildDataCheckString = (payload: Record<string, string>): string => {
+  return Object.keys(payload)
+    .filter((key) => key !== "hash")
+    .sort()
+    .map((key) => `${key}=${payload[key]}`)
+    .join("\n")
+}
+
+const parseInitData = (initData: string): Record<string, string> => {
+  const params = new URLSearchParams(initData)
+  const result: Record<string, string> = {}
+
+  params.forEach((value, key) => {
+    result[key] = value
+  })
+
+  return result
+}
+
+const parseUser = (rawUser?: string): TelegramInitUser => {
+  if (!rawUser) {
+    throw new TelegramAuthVerificationError("Telegram user payload is missing.")
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawUser)
+  } catch (error) {
+    throw new TelegramAuthVerificationError("Telegram user payload is not valid JSON.")
+  }
+
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new TelegramAuthVerificationError("Telegram user payload is malformed.")
+  }
+
+  const candidate = parsed as Partial<TelegramInitUser>
+  if (typeof candidate.id !== "number") {
+    throw new TelegramAuthVerificationError("Telegram user id is missing.")
+  }
+
+  if (typeof candidate.first_name !== "string" || candidate.first_name.length === 0) {
+    throw new TelegramAuthVerificationError("Telegram user first name is missing.")
+  }
+
+  return {
+    id: candidate.id,
+    first_name: candidate.first_name,
+    last_name: typeof candidate.last_name === "string" ? candidate.last_name : undefined,
+    username: typeof candidate.username === "string" ? candidate.username : undefined,
+    language_code: typeof candidate.language_code === "string" ? candidate.language_code : undefined,
+    photo_url: typeof candidate.photo_url === "string" ? candidate.photo_url : undefined,
+  }
+}
+
+export const validateTelegramInitData = (
+  initData: string,
+  botToken: string,
+  options?: TelegramValidationOptions,
+): TelegramValidationResult => {
+  if (!initData || typeof initData !== "string") {
+    throw new TelegramAuthVerificationError("Telegram init data must be a non-empty string.", 400)
+  }
+
+  if (!botToken) {
+    throw new TelegramAuthVerificationError("Telegram bot token is not configured.", 500)
+  }
+
+  const payload = parseInitData(initData)
+  const hash = payload.hash
+  if (!hash) {
+    throw new TelegramAuthVerificationError("Telegram init data hash is missing.", 400)
+  }
+
+  const rawAuthDate = payload.auth_date
+  if (!rawAuthDate) {
+    throw new TelegramAuthVerificationError("Telegram auth_date field is missing.", 400)
+  }
+
+  const authDate = Number.parseInt(rawAuthDate, 10)
+  if (!Number.isFinite(authDate)) {
+    throw new TelegramAuthVerificationError("Telegram auth_date field is invalid.", 400)
+  }
+
+  const clock = options?.now ?? Date.now
+  const maxAgeSeconds = options?.maxAgeSeconds ?? TELEGRAM_INIT_DATA_MAX_AGE_SECONDS
+  const ageSeconds = Math.floor(clock() / 1000) - authDate
+  if (ageSeconds > maxAgeSeconds) {
+    throw new TelegramAuthVerificationError("Telegram auth data is expired.")
+  }
+  if (ageSeconds < 0) {
+    throw new TelegramAuthVerificationError("Telegram auth_date is in the future.")
+  }
+
+  const secretKey = createSecretKey(botToken)
+  const dataCheckString = buildDataCheckString(payload)
+  const computedHash = computeVerificationHash(dataCheckString, secretKey)
+
+  const providedHashBuffer = Buffer.from(hash, "hex")
+  const computedHashBuffer = Buffer.from(computedHash, "hex")
+
+  if (
+    providedHashBuffer.length !== computedHashBuffer.length ||
+    !crypto.timingSafeEqual(providedHashBuffer, computedHashBuffer)
+  ) {
+    throw new TelegramAuthVerificationError("Telegram auth signature is invalid.")
+  }
+
+  const user = parseUser(payload.user)
+
+  return {
+    authDate,
+    hash,
+    payload,
+    user,
+  }
+}
