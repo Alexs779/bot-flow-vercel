@@ -23,6 +23,12 @@ export type TelegramInitDataUnsafe = {
   [key: string]: unknown;
 };
 
+export type TelegramHapticFeedback = {
+  impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+  notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+  selectionChanged: () => void;
+};
+
 export type TelegramWebApp = {
   initData: string;
   initDataUnsafe?: TelegramInitDataUnsafe;
@@ -30,6 +36,7 @@ export type TelegramWebApp = {
   expand: () => void;
   openInvoice: (url: string, callback: (status: string) => void) => void;
   showAlert: (message: string) => void;
+  HapticFeedback?: TelegramHapticFeedback;
 };
 
 export type ValidatedTelegramAuthData = {

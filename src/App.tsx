@@ -1,5 +1,6 @@
-﻿import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
+import { haptics } from "./utils/haptics"
 
 declare global {
   interface Window {
@@ -206,6 +207,8 @@ const numberFormatter = new Intl.NumberFormat("ru-RU")
 const formatNumber = (value: number) => numberFormatter.format(value)
 
 const KEYBOARD_TAP_KEYS = new Set([" ", "Spacebar", "Enter"])
+
+const cn = (...classes: (string | false | undefined | null)[]) => classes.filter(Boolean).join(" ")
 
 const SOCIAL_ICONS = {
   instagram: (
@@ -650,10 +653,7 @@ function App() {
   }, [sessionToken])
 
   const handleTap = useCallback((x: number, y: number) => {
-    // Add vibration for mobile feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50)
-    }
+    haptics.light()
 
     setBalance((prev) => prev + tapPower)
     setLifetimeScore((prev) => prev + tapPower)
@@ -737,27 +737,32 @@ function App() {
   }
 
   const handleShowShop = (styleId: string) => {
+    haptics.selectionChanged()
     setSelectedStyleId(styleId)
     setView("shop")
     setIsSidebarOpen(false)
   }
 
   const handleShowStyles = () => {
+    haptics.selectionChanged()
     setView("styles")
     setSelectedStyleId(null)
   }
 
   const handleBackToStage = () => {
+    haptics.selectionChanged()
     setView("stage")
     setSelectedStyleId(null)
   }
 
   const handleShowEvents = () => {
+    haptics.selectionChanged()
     setView("events")
     setIsSidebarOpen(false)
   }
 
   const handleAddEvent = (event: Event) => {
+    haptics.success()
     const updatedEvents = [...events, event]
     setEvents(updatedEvents)
     localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(updatedEvents))
@@ -1044,8 +1049,11 @@ const renderEvents = () => (
             ) : null}
             <button
               type="button"
-              className="landing__control"
-              onClick={() => setIsLogPanelOpen(true)}
+              className={cn("landing__control", isLogPanelOpen && "landing__control--active")}
+              onClick={() => {
+                haptics.light()
+                setIsLogPanelOpen(true)
+              }}
               aria-expanded={isLogPanelOpen}
               aria-controls="logs-panel"
             >
@@ -1053,8 +1061,11 @@ const renderEvents = () => (
             </button>
             <button
               type="button"
-              className="landing__control"
-              onClick={() => setIsSidebarOpen(true)}
+              className={cn("landing__control", isSidebarOpen && "landing__control--active")}
+              onClick={() => {
+                haptics.light()
+                setIsSidebarOpen(true)
+              }}
               aria-expanded={isSidebarOpen}
             >
               {ru.common.menu}
