@@ -1,4 +1,4 @@
-﻿import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
 
 declare global {
@@ -294,6 +294,8 @@ function App() {
 
   const tapButtonRef = useRef<HTMLDivElement | null>(null)
   const floatingIdRef = useRef(0)
+  const isInitializedRef = useRef(false)
+  const isAuthenticatingRef = useRef(false)
 
   const tapPower = useMemo(() => {
     const moveBonus = ownedMoves.length * TAP_POWER_DIMINISHING
@@ -338,15 +340,25 @@ function App() {
   )
 
   const authenticateWithTelegram = useCallback(async () => {
+    // Prevent duplicate authentication calls
+    if (isAuthenticatingRef.current) {
+      console.log('[AUTH] Authentication already in progress, skipping...')
+      return
+    }
+    isAuthenticatingRef.current = true
+
+    console.log('[AUTH] Starting Telegram authentication...')
+    
     const webApp = window.Telegram?.WebApp
     if (!webApp) {
-      console.error("Telegram WebApp API is not available")
+      console.error("[AUTH] Telegram WebApp API is not available")
       setAuthStatus("unsupported")
       setAuthError("Telegram WebApp API is not available. Open the bot directly from Telegram.")
+      isAuthenticatingRef.current = false
       return
     }
 
-    console.log("Telegram WebApp is available:", {
+    console.log("[AUTH] Telegram WebApp is available:", {
       hasInitData: !!webApp.initData,
       initDataLength: webApp.initData?.length || 0,
       hasInitDataUnsafe: !!webApp.initDataUnsafe,
@@ -356,16 +368,17 @@ function App() {
     let initPayload: ValidatedTelegramAuthData
     try {
       initPayload = getTelegramInitData(webApp)
-      console.log("Telegram init data validated successfully:", {
+      console.log("[AUTH] Telegram init data validated successfully:", {
         hasInitData: !!initPayload.initData,
         authDate: initPayload.authDate,
         hasHash: !!initPayload.hash,
         userId: initPayload.user.id
       })
     } catch (error) {
-      console.error("Telegram init data validation failed", error)
+      console.error("[AUTH] Telegram init data validation failed", error)
       setAuthStatus("error")
       setAuthError(error instanceof TelegramAuthError ? error.message : "Failed to validate Telegram init data.")
+      isAuthenticatingRef.current = false
       return
     }
 
@@ -374,7 +387,7 @@ function App() {
 
     try {
       const apiUrl = resolveApiUrl("/api/auth/telegram")
-      console.log("Sending auth request to:", apiUrl)
+      console.log("[AUTH] Sending auth request to:", apiUrl)
       
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -382,22 +395,22 @@ function App() {
         body: JSON.stringify({ initData: initPayload.initData }),
       })
 
-      console.log("Auth response received:", {
+      console.log("[AUTH] Auth response received:", {
         status: response.status,
         ok: response.ok,
         statusText: response.statusText
       })
 
       const payload = await response.json().catch(() => ({})) as AuthResponse
-      console.log("Auth response payload:", payload)
+      console.log("[AUTH] Auth response payload:", payload)
       
       if (!response.ok || !payload.ok || !payload.sessionToken) {
         const message = payload.error ?? `Telegram login failed (status ${response.status}).`
-        console.error("Authentication failed:", message)
+        console.error("[AUTH] Authentication failed:", message)
         throw new Error(message)
       }
 
-      console.log("Authentication successful:", {
+      console.log("[AUTH] Authentication successful:", {
         hasSessionToken: !!payload.sessionToken,
         hasUser: !!payload.user,
         userId: payload.user?.id
@@ -415,36 +428,46 @@ function App() {
       setAuthStatus("authenticated")
       setAuthError(null)
     } catch (error) {
-      console.error("Telegram auth failed", error)
+      console.error("[AUTH] Telegram auth failed", error)
       setAuthStatus("error")
       setAuthError(error instanceof Error ? error.message : "Telegram authorization failed.")
       setTelegramUser(null)
       sessionStorage.removeItem(STORAGE_KEY_USER)
+    } finally {
+      isAuthenticatingRef.current = false
     }
   }, [])
 
   useEffect(() => {
-    console.log("Initializing Telegram WebApp...")
+    // Prevent double initialization in development (StrictMode) and HMR
+    if (isInitializedRef.current) {
+      console.log('[APP INIT] Already initialized, skipping...')
+      return
+    }
+    isInitializedRef.current = true
+
+    console.log('[APP INIT] Starting Telegram WebApp initialization...')
+    
     const webApp = window.Telegram?.WebApp
     if (!webApp) {
-      console.error("Telegram WebApp API is not available in useEffect")
+      console.error("[APP INIT] Telegram WebApp API is not available in useEffect")
       setAuthStatus("unsupported")
       setAuthError("Telegram WebApp API is not available. Open the bot directly from Telegram.")
       return
     }
 
-    console.log("Telegram WebApp found, initializing...")
+    console.log("[APP INIT] Telegram WebApp found, initializing...")
     webApp.ready()
     webApp.expand() // Use full-height viewport provided by Telegram
 
     const cachedToken = sessionStorage.getItem(STORAGE_KEY_SESSION)
-    console.log("Checking cached token:", {
+    console.log("[APP INIT] Checking cached token:", {
       hasCachedToken: !!cachedToken,
       tokenLength: cachedToken?.length || 0
     })
     
     if (cachedToken) {
-      console.log("Using cached session token")
+      console.log("[APP INIT] Using cached session token")
       setSessionToken(cachedToken)
       setAuthStatus("authenticated")
       setAuthError(null)
@@ -453,50 +476,51 @@ function App() {
       if (cachedUserRaw) {
         try {
           const parsedUser = JSON.parse(cachedUserRaw) as TelegramUser
-          console.log("Using cached user:", {
+          console.log("[APP INIT] Using cached user:", {
             userId: parsedUser.id,
             firstName: parsedUser.firstName
           })
           setTelegramUser(parsedUser)
         } catch (parseError) {
-          console.warn("Failed to parse cached Telegram user", parseError)
+          console.warn("[APP INIT] Failed to parse cached Telegram user", parseError)
           sessionStorage.removeItem(STORAGE_KEY_USER)
           setTelegramUser(null)
         }
       } else {
-        console.log("No cached user found")
+        console.log("[APP INIT] No cached user found")
         setTelegramUser(null)
       }
 
       return
     }
 
-    console.log("No cached token found, starting authentication...")
+    console.log("[APP INIT] No cached token found, starting authentication...")
     void authenticateWithTelegram()
+
+    // Cleanup function for HMR and component unmount
+    return () => {
+      console.log("[APP INIT] Cleanup - resetting initialization flag")
+      isInitializedRef.current = false
+    }
   }, [authenticateWithTelegram])
 
   // Load events from localStorage
-
   useEffect(() => {
-
+    console.log('[EVENTS] Loading events from localStorage...')
+    
     const savedEvents = localStorage.getItem(STORAGE_KEY_EVENTS)
 
     if (!savedEvents) {
-
+      console.log('[EVENTS] No saved events found')
       return
-
     }
 
-
-
     try {
-
       const parsed = JSON.parse(savedEvents) as unknown
 
       if (!Array.isArray(parsed)) {
-
+        console.warn('[EVENTS] Saved events is not an array, ignoring')
         return
-
       }
 
 
@@ -594,11 +618,9 @@ function App() {
 
 
       setEvents(normalized)
-
+      console.log(`[EVENTS] Successfully loaded ${normalized.length} events from localStorage`)
     } catch (error) {
-
-      console.error("Failed to parse saved events:", error)
-
+      console.error("[EVENTS] Failed to parse saved events:", error)
     }
 
   }, [])
