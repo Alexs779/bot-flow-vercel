@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: dark;
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -150,6 +150,35 @@ button {
   inset: 0;
   background: linear-gradient(90deg, #ff6f91, #4fd1c5);
   transition: width 0.2s ease;
+}
+
+.landing__save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.landing__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 20px;
+}
+
+.landing__error h2 {
+  margin: 0 0 16px 0;
+  color: #ff4757;
+}
+
+.landing__error p {
+  margin: 0 0 24px 0;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .landing__controls {

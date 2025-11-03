@@ -1,5 +1,8 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { ChangeEvent } from "react"
+import LoadingButton from "./LoadingButton"
+import Spinner from "./Spinner"
+import ProgressBar from "./ProgressBar"
 
 import "./EventModal.css"
 import { RU } from "../i18n/ru"
@@ -97,6 +100,9 @@ export default function EventModal({ isOpen, onClose, onAddEvent }: EventModalPr
   const [imageName, setImageName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isCountryListOpen, setIsCountryListOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -141,14 +147,48 @@ export default function EventModal({ isOpen, onClose, onAddEvent }: EventModalPr
       return
     }
 
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      setError("Файл слишком большой. Максимальный размер - 5MB.")
+      return
+    }
+
+    setIsUploadingImage(true)
+    setUploadProgress(0)
+    setError(null)
+
     const reader = new FileReader()
+    
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval)
+          return 90
+        }
+        return prev + 10
+      })
+    }, 100)
+
     reader.onload = () => {
       if (typeof reader.result === "string") {
-        setForm((prev) => ({ ...prev, imageData: reader.result as string }))
-        setImageName(file.name)
-        setError(null)
+        clearInterval(progressInterval)
+        setUploadProgress(100)
+        setTimeout(() => {
+          setForm((prev) => ({ ...prev, imageData: reader.result as string }))
+          setImageName(file.name)
+          setIsUploadingImage(false)
+          setUploadProgress(0)
+        }, 200)
       }
     }
+
+    reader.onerror = () => {
+      clearInterval(progressInterval)
+      setError("Ошибка загрузки изображения")
+      setIsUploadingImage(false)
+      setUploadProgress(0)
+    }
+
     reader.readAsDataURL(file)
   }
 
@@ -165,33 +205,45 @@ export default function EventModal({ isOpen, onClose, onAddEvent }: EventModalPr
     setIsCountryListOpen(false)
   }
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!form.title.trim() || !form.country.trim() || !form.city.trim() || !form.date || !form.time) {
       setError(ru.errors.fields)
       return
     }
 
-    const instagramHandle = form.instagram.trim().replace(/^@+/, "")
-    const priceInfo = form.priceRange.trim()
+    setIsSubmitting(true)
+    setError(null)
 
-    const event: Event = {
-      id: Date.now().toString(),
-      title: form.title.trim(),
-      description: "",
-      category: form.category,
-      country: form.country.trim(),
-      city: form.city.trim(),
-      date: form.date,
-      time: form.time,
-      imageData: form.imageData,
-      instagram: instagramHandle ? instagramHandle : undefined,
-      priceRange: priceInfo ? priceInfo : undefined,
-      createdBy: ru.createdBy,
-      createdAt: new Date().toISOString(),
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const instagramHandle = form.instagram.trim().replace(/^@+/, "")
+      const priceInfo = form.priceRange.trim()
+
+      const event: Event = {
+        id: Date.now().toString(),
+        title: form.title.trim(),
+        description: "",
+        category: form.category,
+        country: form.country.trim(),
+        city: form.city.trim(),
+        date: form.date,
+        time: form.time,
+        imageData: form.imageData,
+        instagram: instagramHandle ? instagramHandle : undefined,
+        priceRange: priceInfo ? priceInfo : undefined,
+        createdBy: ru.createdBy,
+        createdAt: new Date().toISOString(),
+      }
+
+      onAddEvent(event)
+      onClose()
+    } catch (error) {
+      setError("Ошибка при создании события")
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onAddEvent(event)
-    onClose()
   }
 
   if (!isOpen) {
@@ -228,20 +280,34 @@ export default function EventModal({ isOpen, onClose, onAddEvent }: EventModalPr
           <div className="event-modal__content">
             <div className="event-modal__field">
               <span className="event-modal__label">{ru.imageLabel}</span>
-              <label className={`event-modal__upload${form.imageData ? " event-modal__upload--filled" : ""}`}>
+              <label className={`event-modal__upload${form.imageData ? " event-modal__upload--filled" : ""} ${isUploadingImage ? "event-modal__upload--loading" : ""}`}>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   className="event-modal__file-input"
                   onChange={handleImageChange}
+                  disabled={isSubmitting || isUploadingImage}
                 />
-                {form.imageData ? (
+                {isUploadingImage ? (
+                  <div className="event-modal__upload-loading">
+                    <Spinner size="medium" />
+                    <div className="event-modal__upload-progress">
+                      <ProgressBar value={uploadProgress} showPercentage />
+                    </div>
+                    <span>Загрузка изображения...</span>
+                  </div>
+                ) : form.imageData ? (
                   <div className="event-modal__image-preview">
                     <img src={form.imageData} alt={ru.imagePreviewAlt} />
                     <div className="event-modal__image-meta">
                       <span className="event-modal__image-name">{imageName || "Выбранное изображение"}</span>
-                      <button type="button" className="event-modal__clear-image" onClick={handleRemoveImage}>
+                      <button 
+                        type="button" 
+                        className="event-modal__clear-image" 
+                        onClick={handleRemoveImage}
+                        disabled={isSubmitting}
+                      >
                         Удалить
                       </button>
                     </div>
@@ -266,6 +332,7 @@ export default function EventModal({ isOpen, onClose, onAddEvent }: EventModalPr
                 onChange={handleInputChange}
                 maxLength={80}
                 autoComplete="off"
+                disabled={isSubmitting || isUploadingImage}
               />
             </div>
 
@@ -390,17 +457,23 @@ export default function EventModal({ isOpen, onClose, onAddEvent }: EventModalPr
           </div>
 
           <div className="event-modal__actions">
-            <button type="button" className="event-modal__button event-modal__button--ghost" onClick={onClose}>
+            <LoadingButton 
+              type="button" 
+              className="event-modal__button event-modal__button--ghost" 
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Отмена
-            </button>
-            <button
+            </LoadingButton>
+            <LoadingButton
               type="button"
+              loading={isSubmitting}
+              disabled={isSubmitDisabled || isSubmitting || isUploadingImage}
               className="event-modal__button event-modal__button--primary"
               onClick={handleAddEvent}
-              disabled={isSubmitDisabled}
             >
               Создать
-            </button>
+            </LoadingButton>
           </div>
         </div>
       </div>

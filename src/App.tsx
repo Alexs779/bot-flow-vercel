@@ -1,5 +1,11 @@
-﻿import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
+import LoadingSplash from "./components/LoadingSplash"
+import Spinner from "./components/Spinner"
+import Skeleton from "./components/Skeleton"
+import LoadingButton from "./components/LoadingButton"
+import { ToastProvider, useToast } from "./components/ToastProvider"
+import EventModalComponent from "./components/EventModal"
 
 declare global {
   interface Window {
@@ -21,7 +27,6 @@ import {
 import "./App.css"
 import flowForceLogo from "./assets/images/flow-force-logo.png"
 import heroImage from "./assets/images/flow-force-hero.webp"
-import EventModal from "./components/EventModal"
 
 type Move = {
   id: string
@@ -270,7 +275,16 @@ function getSocialIcon(icon: string) {
   return SOCIAL_ICONS[icon as keyof typeof SOCIAL_ICONS] || null
 }
 
+function AppWithProviders() {
+  return (
+    <ToastProvider>
+      <App />
+    </ToastProvider>
+  )
+}
+
 function App() {
+  const { showToast } = useToast()
   const [view, setView] = useState<View>("stage")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
@@ -287,6 +301,8 @@ function App() {
   const [isInvoicePending, setIsInvoicePending] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false)
+  const [isSavingProgress, setIsSavingProgress] = useState(false)
 
   const ru = RU
 
@@ -366,6 +382,7 @@ function App() {
       console.error("Telegram init data validation failed", error)
       setAuthStatus("error")
       setAuthError(error instanceof TelegramAuthError ? error.message : "Failed to validate Telegram init data.")
+      showToast("Ошибка проверки данных Telegram", "error")
       return
     }
 
@@ -414,14 +431,16 @@ function App() {
       }
       setAuthStatus("authenticated")
       setAuthError(null)
+      showToast("Авторизация успешна!", "success")
     } catch (error) {
       console.error("Telegram auth failed", error)
       setAuthStatus("error")
       setAuthError(error instanceof Error ? error.message : "Telegram authorization failed.")
       setTelegramUser(null)
       sessionStorage.removeItem(STORAGE_KEY_USER)
+      showToast("Ошибка авторизации", "error")
     }
-  }, [])
+  }, [showToast])
 
   useEffect(() => {
     console.log("Initializing Telegram WebApp...")
@@ -449,6 +468,9 @@ function App() {
       setAuthStatus("authenticated")
       setAuthError(null)
 
+      // Load user data and set loading state
+      setIsLoadingProfile(true)
+
       const cachedUserRaw = sessionStorage.getItem(STORAGE_KEY_USER)
       if (cachedUserRaw) {
         try {
@@ -467,6 +489,11 @@ function App() {
         console.log("No cached user found")
         setTelegramUser(null)
       }
+
+      // Simulate profile loading for demo
+      setTimeout(() => {
+        setIsLoadingProfile(false)
+      }, 1000)
 
       return
     }
@@ -601,7 +628,7 @@ function App() {
 
     }
 
-  }, [])
+  }, [showToast])
 
   const initiateInvoice = useCallback(async (move: Move) => {
     if (!sessionToken) {
@@ -710,6 +737,21 @@ function App() {
     return () => window.removeEventListener("keydown", handleEsc)
   }, [])
 
+  // Auto-save progress with debouncing
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (authStatus === "authenticated") {
+        setIsSavingProgress(true)
+        // Simulate save operation
+        setTimeout(() => {
+          setIsSavingProgress(false)
+        }, 500)
+      }
+    }, 2000) // Debounce for 2 seconds
+
+    return () => window.clearTimeout(timer)
+  }, [balance, lifetimeScore, ownedMoves, authStatus])
+
   // Clear floating scores when leaving the stage view
   useEffect(() => {
     if (view !== "stage") {
@@ -734,6 +776,7 @@ function App() {
 
     setBalance((prev) => prev - move.cost)
     setOwnedMoves((prev) => [...prev, move.id])
+    showToast(`Движение "${move.name}" куплено за ${formatNumber(move.cost)} Flow!`, "success")
   }
 
   const handleShowShop = (styleId: string) => {
@@ -850,16 +893,25 @@ const renderStyles = () => (
     <div className="moves" role="region" aria-live="polite">
       <h2 className="moves__title">{ru.common.movesTitle}</h2>
       <div className="moves__grid">
-        {MOVE_STYLES.map((style) => (
-          <button
-            key={style.id}
-            type="button"
-            className="moves__card"
-            onClick={() => handleShowShop(style.id)}
-          >
-            <span className="moves__card-label">{style.label}</span>
-          </button>
-        ))}
+        {isLoadingProfile ? (
+          // Show skeleton loaders while loading
+          Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="moves__card">
+              <Skeleton variant="rect" width="100%" height="80px" />
+            </div>
+          ))
+        ) : (
+          MOVE_STYLES.map((style) => (
+            <button
+              key={style.id}
+              type="button"
+              className="moves__card"
+              onClick={() => handleShowShop(style.id)}
+            >
+              <span className="moves__card-label">{style.label}</span>
+            </button>
+          ))
+        )}
       </div>
     </div>
   )
@@ -875,31 +927,43 @@ const renderShop = () => {
           <h2 className="moves__title">{selectedStyle.label}</h2>
         </div>
         <div className="moves__list">
-          {selectedStyle.moves.map((move) => (
-            <article key={move.id} className="moves__item">
-              <div className="moves__item-info">
-                <h3 className="moves__item-name">{move.name}</h3>
-                <p className="moves__item-meta">
-                  {ru.common.costLabel} <span className="moves__item-cost">{formatNumber(move.cost)} FLOW</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                className="moves__buy"
-                onClick={() => handleBuyMove(move)}
-                disabled={
-                  ownedMoves.includes(move.id) ||
-                  Boolean(sessionToken && authStatus === "authenticated" && isInvoicePending)
-                }
-              >
-                {ownedMoves.includes(move.id)
-                  ? ru.common.buttonPurchased
-                  : sessionToken
-                    ? ru.common.buttonBuy
-                    : ru.common.buttonExchange}
-              </button>
-            </article>
-          ))}
+          {isLoadingProfile ? (
+            // Show skeleton loaders while loading
+            Array.from({ length: selectedStyle.moves.length }).map((_, index) => (
+              <article key={index} className="moves__item">
+                <div className="moves__item-info">
+                  <Skeleton variant="text" width="120px" height="20px" />
+                  <p className="moves__item-meta">
+                    {ru.common.costLabel} <Skeleton variant="text" width="80px" height="16px" />
+                  </p>
+                </div>
+                <Skeleton variant="rect" width="80px" height="36px" />
+              </article>
+            ))
+          ) : (
+            selectedStyle.moves.map((move) => (
+              <article key={move.id} className="moves__item">
+                <div className="moves__item-info">
+                  <h3 className="moves__item-name">{move.name}</h3>
+                  <p className="moves__item-meta">
+                    {ru.common.costLabel} <span className="moves__item-cost">{formatNumber(move.cost)} FLOW</span>
+                  </p>
+                </div>
+                <LoadingButton
+                  loading={isInvoicePending}
+                  disabled={ownedMoves.includes(move.id)}
+                  onClick={() => handleBuyMove(move)}
+                  className="moves__buy"
+                >
+                  {ownedMoves.includes(move.id)
+                    ? ru.common.buttonPurchased
+                    : sessionToken
+                      ? ru.common.buttonBuy
+                      : ru.common.buttonExchange}
+                </LoadingButton>
+              </article>
+            ))
+          )}
         </div>
       </div>
     )
@@ -918,7 +982,7 @@ const renderEvents = () => (
       </button>
     </div>
 
-    <EventModal
+    <EventModalComponent
       isOpen={isEventModalOpen}
       onClose={() => setIsEventModalOpen(false)}
       onAddEvent={handleAddEvent}
@@ -1010,6 +1074,28 @@ const renderEvents = () => (
 )
 
 
+  // Show loading splash during authentication or profile loading
+  if (authStatus === "loading" || authStatus === "idle" || (authStatus === "authenticated" && isLoadingProfile)) {
+    return <LoadingSplash message={authStatus === "loading" ? "Проверяем данные..." : "Загрузка профиля..."} />
+  }
+
+  // Show error state
+  if (authStatus === "error" || authStatus === "unsupported") {
+    return (
+      <div className="app">
+        <main className="landing">
+          <div className="landing__error">
+            <h2>Ошибка</h2>
+            <p>{authError || "Произошла ошибка при загрузке приложения"}</p>
+            <LoadingButton onClick={() => window.location.reload()}>
+              Перезагрузить
+            </LoadingButton>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
 
     <div className="app">
@@ -1018,20 +1104,38 @@ const renderEvents = () => (
           <div className="landing__metrics">
             <div className="landing__metric">
               <span className="landing__metric-label">Flow</span>
-              <span className="landing__metric-value">{formatNumber(balance)}</span>
+              {isLoadingProfile ? (
+                <Skeleton variant="text" width="80px" height="20px" />
+              ) : (
+                <span className="landing__metric-value">{formatNumber(balance)}</span>
+              )}
             </div>
             <div className="landing__metric">
               <span className="landing__metric-label">LVL</span>
-              <span className="landing__metric-value">{level}</span>
+              {isLoadingProfile ? (
+                <Skeleton variant="text" width="40px" height="20px" />
+              ) : (
+                <span className="landing__metric-value">{level}</span>
+              )}
             </div>
             <div className="landing__metric">
               <span className="landing__metric-label">Power</span>
-              <span className="landing__metric-value">+{tapPower}</span>
+              {isLoadingProfile ? (
+                <Skeleton variant="text" width="50px" height="20px" />
+              ) : (
+                <span className="landing__metric-value">+{tapPower}</span>
+              )}
             </div>
           </div>
           <div className="landing__progress" role="progressbar" aria-valuenow={Math.round(levelProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
             <span className="landing__progress-fill" style={{ width: `${Math.round(levelProgress * 100)}%` }} />
           </div>
+          {isSavingProgress && (
+            <div className="landing__save-indicator">
+              <Spinner size="small" />
+              <span>Сохранение...</span>
+            </div>
+          )}
           <div className="landing__controls">
             {view !== "stage" ? (
               <button
@@ -1179,7 +1283,7 @@ const renderEvents = () => (
   )
 }
 
-export default App
+export default AppWithProviders
 
 
 

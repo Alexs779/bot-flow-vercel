@@ -1,0 +1,43 @@
+.loading-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #00ff9f, #00d4ff);
+  color: #000;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.loading-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 159, 0.3);
+}
+
+.loading-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.loading-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-button--loading {
+  pointer-events: none;
+}
+
+.loading-button__spinner {
+  flex-shrink: 0;
+}
+
+.loading-button__text {
+  display: flex;
+  align-items: center;
+}
