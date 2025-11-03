@@ -1038,27 +1038,6 @@ const renderEvents = () => (
     <div className="app">
       <main className="landing">
         <header className="landing__header">
-          {telegramUser && (
-            <div className="landing__user">
-              <div className="landing__user-avatar">
-                {telegramUser.avatar ? (
-                  <img src={telegramUser.avatar} alt="Avatar" />
-                ) : (
-                  <div className="landing__user-avatar-placeholder">
-                    {telegramUser.firstName?.[0]}{telegramUser.lastName?.[0]}
-                  </div>
-                )}
-              </div>
-              <div className="landing__user-info">
-                <div className="landing__user-name">
-                  {telegramUser.firstName} {telegramUser.lastName}
-                </div>
-                {telegramUser.username && (
-                  <div className="landing__user-username">@{telegramUser.username}</div>
-                )}
-              </div>
-            </div>
-          )}
           <div className="landing__metrics">
             <div className="landing__metric">
               <span className="landing__metric-label">Flow</span>
