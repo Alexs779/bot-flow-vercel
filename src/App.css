@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: dark;
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -125,6 +125,28 @@ button {
   font-weight: 600;
 }
 
+.landing__metric-value--pulse {
+  animation: pulse-scale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pulse-scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__metric-value--pulse {
+    animation: none;
+  }
+}
+
 .landing__metrics .landing__metric:nth-child(1) .landing__metric-label {
   color: #ff365f;
 }
@@ -149,7 +171,14 @@ button {
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, #ff6f91, #4fd1c5);
-  transition: width 0.2s ease;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__progress-fill {
+    transition: none;
+  }
 }
 
 .landing__controls {
@@ -206,6 +235,22 @@ button {
   width: 280px;
   height: 280px;
   border-radius: 50%;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.landing__tap:active .landing__avatar {
+  transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__avatar {
+    transition: none;
+  }
+  
+  .landing__tap:active .landing__avatar {
+    transform: none;
+  }
 }
 
 .landing__character {
@@ -220,18 +265,40 @@ button {
   position: absolute;
   font-weight: 600;
   color: #4fd1c5;
-  font-size: 1.1rem;
-  animation: float-up 0.7s ease forwards;
+  font-size: 1.3rem;
+  text-shadow: 0 2px 8px rgba(79, 209, 197, 0.6);
+  animation: float-up 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 
 @keyframes float-up {
-  from {
+  0% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(0.8);
   }
-  to {
+  20% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.2);
+  }
+  100% {
     opacity: 0;
-    transform: translateY(-40px);
+    transform: translateY(-60px) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__score {
+    animation: float-up-reduced 0.7s linear forwards;
+  }
+  
+  @keyframes float-up-reduced {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
   }
 }
 

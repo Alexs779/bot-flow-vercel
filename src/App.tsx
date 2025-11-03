@@ -1,4 +1,4 @@
-﻿import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
 
 declare global {
@@ -22,6 +22,10 @@ import "./App.css"
 import flowForceLogo from "./assets/images/flow-force-logo.png"
 import heroImage from "./assets/images/flow-force-hero.webp"
 import EventModal from "./components/EventModal"
+import Ripple from "./components/Ripple"
+import Confetti from "./components/Confetti"
+import { useCountUp } from "./hooks/useCountUp"
+import { useHapticFeedback } from "./hooks/useHapticFeedback"
 
 type Move = {
   id: string
@@ -41,6 +45,12 @@ type MoveStyle = {
 type FloatingScore = {
   id: number
   value: number
+  x: number
+  y: number
+}
+
+type RippleEffect = {
+  id: number
   x: number
   y: number
 }
@@ -278,6 +288,7 @@ function App() {
   const [balance, setBalance] = useState(0)
   const [ownedMoves, setOwnedMoves] = useState<string[]>([])
   const [floatingScores, setFloatingScores] = useState<FloatingScore[]>([])
+  const [ripples, setRipples] = useState<RippleEffect[]>([])
   const [sessionToken, setSessionToken] = useState<string | null>(null)
   const [authStatus, setAuthStatus] = useState<AuthStatus>("idle")
   const [authError, setAuthError] = useState<string | null>(null)
@@ -287,13 +298,18 @@ function App() {
   const [isInvoicePending, setIsInvoicePending] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [levelUpTrigger, setLevelUpTrigger] = useState(0)
+  const [balancePulse, setBalancePulse] = useState(0)
 
   const ru = RU
 
-
+  const { impactOccurred, notificationOccurred } = useHapticFeedback()
+  const displayBalance = useCountUp(balance, 300)
 
   const tapButtonRef = useRef<HTMLDivElement | null>(null)
   const floatingIdRef = useRef(0)
+  const rippleIdRef = useRef(0)
+  const previousLevelRef = useRef(1)
 
   const tapPower = useMemo(() => {
     const moveBonus = ownedMoves.length * TAP_POWER_DIMINISHING
@@ -650,13 +666,11 @@ function App() {
   }, [sessionToken])
 
   const handleTap = useCallback((x: number, y: number) => {
-    // Add vibration for mobile feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50)
-    }
+    impactOccurred("light")
 
     setBalance((prev) => prev + tapPower)
     setLifetimeScore((prev) => prev + tapPower)
+    setBalancePulse(Date.now())
 
     floatingIdRef.current += 1
     const floating: FloatingScore = {
@@ -666,8 +680,16 @@ function App() {
       y,
     }
 
+    rippleIdRef.current += 1
+    const ripple: RippleEffect = {
+      id: rippleIdRef.current,
+      x,
+      y,
+    }
+
     setFloatingScores((prev) => [...prev, floating])
-  }, [tapPower])
+    setRipples((prev) => [...prev, ripple])
+  }, [tapPower, impactOccurred])
 
   const handlePointerTap = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
@@ -714,8 +736,31 @@ function App() {
   useEffect(() => {
     if (view !== "stage") {
       setFloatingScores([])
+      setRipples([])
     }
   }, [view])
+
+  // Detect level-up and trigger celebration
+  useEffect(() => {
+    if (level > previousLevelRef.current) {
+      setLevelUpTrigger(Date.now())
+      notificationOccurred("success")
+    }
+    previousLevelRef.current = level
+  }, [level, notificationOccurred])
+
+  // Clean up ripples
+  useEffect(() => {
+    if (ripples.length === 0) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setRipples((prev) => prev.slice(1))
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [ripples])
 
   const handleBuyMove = (move: Move) => {
     if (ownedMoves.includes(move.id) || isInvoicePending) {
@@ -832,6 +877,7 @@ function App() {
     >
       <div className="landing__avatar">
         <img src={heroImage} alt="Flow Force dancer" className="landing__character" />
+        <Ripple ripples={ripples} duration={600} />
         {floatingScores.map((floating) => (
           <span
             key={floating.id}
@@ -1013,12 +1059,18 @@ const renderEvents = () => (
   return (
 
     <div className="app">
+      <Confetti trigger={levelUpTrigger} duration={2000} />
       <main className="landing">
         <header className="landing__header">
           <div className="landing__metrics">
             <div className="landing__metric">
               <span className="landing__metric-label">Flow</span>
-              <span className="landing__metric-value">{formatNumber(balance)}</span>
+              <span
+                key={balancePulse}
+                className="landing__metric-value landing__metric-value--pulse"
+              >
+                {formatNumber(displayBalance)}
+              </span>
             </div>
             <div className="landing__metric">
               <span className="landing__metric-label">LVL</span>
