@@ -930,17 +930,6 @@ const renderShop = () => {
 
 const renderEvents = () => (
   <div className="events" role="region" aria-live="polite">
-    <div className="events__header">
-      <h2 className="events__title">{ru.events.title}</h2>
-      <button
-        type="button"
-        className="events__add-button"
-        onClick={() => setIsEventModalOpen(true)}
-      >
-        {ru.events.addButton}
-      </button>
-    </div>
-
     <EventModal
       isOpen={isEventModalOpen}
       onClose={() => setIsEventModalOpen(false)}
@@ -1066,6 +1055,15 @@ const renderEvents = () => (
                 onClick={handleBackToStage}
               >
                 {ru.common.back}
+              </button>
+            ) : null}
+            {view === "events" ? (
+              <button
+                type="button"
+                className="landing__control landing__control--add"
+                onClick={() => setIsEventModalOpen(true)}
+              >
+                {ru.events.addButton}
               </button>
             ) : null}
           </div>

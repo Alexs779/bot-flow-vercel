@@ -275,6 +275,14 @@ button {
   opacity: 0.9;
 }
 
+.landing__control--add {
+  background: linear-gradient(135deg, #ff6f91, #4fd1c5);
+  color: #050507;
+  font-weight: 600;
+  font-size: 0.7rem;
+  padding: 8px 16px;
+}
+
 .landing__stage {
   min-height: 340px;
   display: flex;
@@ -746,9 +754,10 @@ button {
 
 .events__grid {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   grid-template-columns: repeat(2, 1fr);
-  max-height: calc(100vh - 200px);
+  padding: 16px;
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
 }
 
@@ -756,11 +765,11 @@ button {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: 8px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(5, 5, 7, 0.86);
-  box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.85);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -797,22 +806,22 @@ button {
 
 .event-card__badge {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  padding: 6px 14px;
+  top: 4px;
+  left: 4px;
+  padding: 2px 4px;
   border-radius: 999px;
   background: #ffd447;
   color: #050507;
-  font-size: 0.7rem;
-  letter-spacing: 0.22em;
+  font-size: 0.4rem;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
 }
 
 .event-card__body {
-  padding: 8px 6px 8px;
+  padding: 6px 4px 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .event-card__title {
