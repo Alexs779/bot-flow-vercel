@@ -335,7 +335,15 @@ button {
 
 .landing__actions {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.landing__bottom-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .landing__moves {
