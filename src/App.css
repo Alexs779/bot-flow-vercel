@@ -15,6 +15,19 @@ html,
   background: #050507;
   color: #f4f5f7;
   -webkit-tap-highlight-color: transparent;
+  /* Mobile viewport simulation */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#root {
+  width: 375px;
+  height: 667px;
+  border: 2px solid #333;
+  border-radius: 20px;
+  box-shadow: 0 0 50px rgba(0,0,0,0.3);
+  overflow: hidden;
 }
 
 button {
@@ -336,8 +349,9 @@ button {
 .landing__actions {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   align-items: center;
+  padding-bottom: 24px;
 }
 
 .landing__bottom-controls {
@@ -732,19 +746,21 @@ button {
 
 .events__grid {
   display: grid;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .event-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 22px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(5, 5, 7, 0.86);
-  box-shadow: 0 24px 40px -24px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.85);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -793,15 +809,15 @@ button {
 }
 
 .event-card__body {
-  padding: 10px 9px 11px;
+  padding: 8px 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 8px;
 }
 
 .event-card__title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.05em;
 }
@@ -823,8 +839,8 @@ button {
 .event-card__meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
+  gap: 4px;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.82);
 }
 
