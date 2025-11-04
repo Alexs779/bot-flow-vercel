@@ -1037,23 +1037,27 @@ const renderEvents = () => (
     <div className="app">
       <main className="landing">
         <header className="landing__header">
-          <div className="landing__metrics">
-            <div className="landing__metric">
-              <span className="landing__metric-label">Flow</span>
-              <span className="landing__metric-value">{formatNumber(balance)}</span>
-            </div>
-            <div className="landing__metric">
-              <span className="landing__metric-label">LVL</span>
-              <span className="landing__metric-value">{level}</span>
-            </div>
-            <div className="landing__metric">
-              <span className="landing__metric-label">Power</span>
-              <span className="landing__metric-value">+{tapPower}</span>
-            </div>
-          </div>
-          <div className="landing__progress" role="progressbar" aria-valuenow={Math.round(levelProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
-            <span className="landing__progress-fill" style={{ width: `${Math.round(levelProgress * 100)}%` }} />
-          </div>
+          {view !== "events" && (
+            <>
+              <div className="landing__metrics">
+                <div className="landing__metric">
+                  <span className="landing__metric-label">Flow</span>
+                  <span className="landing__metric-value">{formatNumber(balance)}</span>
+                </div>
+                <div className="landing__metric">
+                  <span className="landing__metric-label">LVL</span>
+                  <span className="landing__metric-value">{level}</span>
+                </div>
+                <div className="landing__metric">
+                  <span className="landing__metric-label">Power</span>
+                  <span className="landing__metric-value">+{tapPower}</span>
+                </div>
+              </div>
+              <div className="landing__progress" role="progressbar" aria-valuenow={Math.round(levelProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
+                <span className="landing__progress-fill" style={{ width: `${Math.round(levelProgress * 100)}%` }} />
+              </div>
+            </>
+          )}
           <div className="landing__controls">
             {view !== "stage" ? (
               <button
