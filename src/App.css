@@ -157,29 +157,29 @@ button {
 .landing__metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 8px;
 }
 
 .landing__metric {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 16px;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(12px);
 }
 
 .landing__metric-label {
   text-transform: uppercase;
-  font-size: clamp(0.8rem, 1.8vw, 1rem);
-  letter-spacing: 0.2em;
+  font-size: clamp(0.6rem, 1.2vw, 0.8rem);
+  letter-spacing: 0.15em;
   font-weight: 600;
   opacity: 0.8;
 }
 
 .landing__metric-value {
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -749,6 +749,7 @@ button {
   position: relative;
   aspect-ratio: 4 / 5;
   background: rgba(255, 255, 255, 0.05);
+  height: 75px;
 }
 
 .event-card__image {
@@ -784,7 +785,7 @@ button {
 }
 
 .event-card__body {
-  padding: 20px 18px 22px;
+  padding: 10px 9px 11px;
   display: flex;
   flex-direction: column;
   gap: 18px;
