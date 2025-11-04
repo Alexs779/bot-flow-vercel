@@ -782,9 +782,9 @@ button {
 
 .event-card__image-wrapper {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
   background: rgba(255, 255, 255, 0.05);
-  height: 75px;
+  width: 100%;
 }
 
 .event-card__image {
