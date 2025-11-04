@@ -995,9 +995,6 @@ const renderEvents = () => (
                       </div>
                     )}
                   </div>
-                  <div className="event-card__footer">
-                    <span>{ru.common.createdByPrefix}{event.createdBy}</span>
-                  </div>
                   {event.description && (
                     <p className="event-card__description">{event.description}</p>
                   )}
@@ -1011,6 +1008,9 @@ const renderEvents = () => (
                       @{instagramHandle}
                     </a>
                   )}
+                  <div className="event-card__footer">
+                    <span>{ru.common.createdByPrefix}{event.createdBy}</span>
+                  </div>
                 </div>
               </article>
             )

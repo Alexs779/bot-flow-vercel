@@ -759,6 +759,7 @@ button {
   padding: 16px;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
+  grid-auto-rows: 1fr;
 }
 
 .event-card {
@@ -771,6 +772,7 @@ button {
   background: rgba(5, 5, 7, 0.86);
   box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.85);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
 }
 
 .event-card:hover {
