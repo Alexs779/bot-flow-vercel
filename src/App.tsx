@@ -1,4 +1,4 @@
-import { getTelegramInitDataFromSDK, getTelegramInitDataWithSDK, TelegramAuthError, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitDataWithSDK, TelegramAuthError, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
 
 
@@ -363,8 +363,8 @@ function App() {
 
     let initPayload: ValidatedTelegramAuthData
     try {
-      // Используем новый подход для получения init данных
-      initPayload = getTelegramInitDataFromSDK()
+      // Используем официальный SDK для получения init данных
+      initPayload = await getTelegramInitDataWithSDK()
       console.log("[AUTH] Telegram init data validated successfully:", {
         hasInitData: !!initPayload.initData,
         authDate: initPayload.authDate,
