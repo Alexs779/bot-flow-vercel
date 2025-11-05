@@ -284,6 +284,8 @@ function App() {
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false)
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' })
 
   const [isInvoicePending, setIsInvoicePending] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
@@ -786,6 +788,59 @@ function App() {
     localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(updatedEvents))
   }
 
+  const handleSyncTelegramData = useCallback(async () => {
+    if (!sessionToken || authStatus !== "authenticated") {
+      setSyncStatus({ type: 'error', message: 'Сначала авторизуйтесь в Telegram' })
+      return
+    }
+
+    setIsSyncing(true)
+    setSyncStatus({ type: null, message: '' })
+
+    try {
+      const webApp = window.Telegram?.WebApp
+      if (!webApp) {
+        throw new Error('Telegram WebApp API недоступен')
+      }
+
+      // Получаем актуальные данные из Telegram WebApp
+      const initPayload = getTelegramInitData(webApp)
+      
+      // Обновляем данные пользователя в состоянии
+      const updatedUser: TelegramUser = {
+        id: initPayload.user.id,
+        firstName: initPayload.user.firstName,
+        lastName: initPayload.user.lastName,
+        username: initPayload.user.username,
+        avatar: initPayload.user.avatarUrl
+      }
+
+      setTelegramUser(updatedUser)
+      
+      // Сохраняем обновленные данные в sessionStorage
+      sessionStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updatedUser))
+
+      setSyncStatus({ type: 'success', message: 'Данные успешно синхронизированы' })
+      
+      // Показываем уведомление через Telegram WebApp API
+      if (webApp.showAlert) {
+        webApp.showAlert('Данные профиля обновлены')
+      }
+    } catch (error) {
+      console.error('Ошибка синхронизации:', error)
+      setSyncStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Ошибка при синхронизации данных'
+      })
+    } finally {
+      setIsSyncing(false)
+      // Очищаем статус через 3 секунды
+      setTimeout(() => {
+        setSyncStatus({ type: null, message: '' })
+      }, 3000)
+    }
+  }, [sessionToken, authStatus])
+
   const getEventTimestamp = (event: Event) => {
 
     if (!event.date) {
@@ -1226,6 +1281,39 @@ const renderEvents = () => (
                   <div className="settings-panel__stat">
                     <span className="settings-panel__stat-label">Движения</span>
                     <span className="settings-panel__stat-value">{ownedMoves.length}</span>
+                  </div>
+                </div>
+              </section>
+              <section className="settings-panel__section">
+                <h3 className="settings-panel__section-title">Синхронизация данных</h3>
+                <div className="settings-panel__sync">
+                  <button
+                    type="button"
+                    className={`settings-panel__sync-button ${isSyncing ? 'settings-panel__sync-button--loading' : ''}`}
+                    onClick={handleSyncTelegramData}
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? (
+                      <>
+                        <span className="settings-panel__sync-spinner"></span>
+                        Синхронизация...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                        Синхронизировать профиль
+                      </>
+                    )}
+                  </button>
+                  {syncStatus.type && (
+                    <div className={`settings-panel__sync-status settings-panel__sync-status--${syncStatus.type}`}>
+                      {syncStatus.message}
+                    </div>
+                  )}
+                  <div className="settings-panel__sync-info">
+                    <p>Обновляет аватар и данные профиля из Telegram</p>
                   </div>
                 </div>
               </section>
