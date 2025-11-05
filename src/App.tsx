@@ -998,7 +998,6 @@ const renderEvents = () => (
                   )}
                   <div className="event-card__footer">
                     <span>{ru.common.createdByPrefix}{event.createdBy}</span>
-                    <span>{new Date(event.createdAt).toLocaleDateString('ru-RU')}</span>
                   </div>
                 </div>
               </article>

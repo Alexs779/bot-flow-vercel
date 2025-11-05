@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@tma.js/init-data-node": "^1.4.0",
+    "@tma.js/sdk-react": "^3.0.8",
     "@vkruglikov/react-telegram-web-app": "^2.1.9",
     "dotenv": "^17.2.3",
     "express": "^4.21.1",
