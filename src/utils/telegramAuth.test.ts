@@ -31,6 +31,9 @@ describe("getTelegramInitData", () => {
       expand: () => undefined,
       openInvoice: () => undefined,
       showAlert: () => undefined,
+      enableClosingConfirmation: () => undefined,
+      setHeaderColor: () => undefined,
+      setBackgroundColor: () => undefined,
     }
   }
 

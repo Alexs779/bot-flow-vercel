@@ -1,13 +1,6 @@
-import { getTelegramInitDataFromSDK, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitDataFromSDK, getTelegramInitDataWithSDK, TelegramAuthError, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp: TelegramWebApp;
-    };
-  }
-}
 
 import {
   useCallback,
@@ -799,8 +792,8 @@ function App() {
     setSyncStatus({ type: null, message: '' })
 
     try {
-      // Используем новый подход для получения init данных
-      const initPayload = getTelegramInitDataFromSDK()
+      // Используем официальный SDK для получения init данных
+      const initPayload = await getTelegramInitDataWithSDK()
       
       // Обновляем данные пользователя в состоянии
       const updatedUser: TelegramUser = {

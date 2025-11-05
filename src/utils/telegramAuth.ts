@@ -30,6 +30,9 @@ export type TelegramWebApp = {
   expand: () => void;
   openInvoice: (url: string, callback: (status: string) => void) => void;
   showAlert: (message: string) => void;
+  enableClosingConfirmation: () => void;
+  setHeaderColor: (color: string) => void;
+  setBackgroundColor: (color: string) => void;
 };
 
 // Новые типы для совместимости с @telegram-apps/sdk
@@ -193,3 +196,99 @@ export const getTelegramInitData = (
     },
   };
 };
+
+
+// Новая функция для получения init данных с использованием официального SDK
+export const getTelegramInitDataWithSDK = async (
+  options?: TelegramAuthValidationOptions,
+): Promise<ValidatedTelegramAuthData> => {
+  try {
+    // Импортируем SDK динамически, чтобы избежать проблем с SSR
+    const { init, initDataRaw, initDataState } = await import('@telegram-apps/sdk');
+    
+    // Инициализируем SDK
+    init();
+    
+    // Получаем сырые init данные
+    const rawData = initDataRaw();
+    if (!rawData) {
+      throw new TelegramAuthError('Telegram init data is missing.');
+    }
+
+    // Получаем структурированные данные
+    const state = initDataState();
+    if (!state || !state.user) {
+      throw new TelegramAuthError('Telegram user information is missing.');
+    }
+
+    const { auth_date: authDate, hash, user } = state;
+
+    if (!hash || typeof hash !== 'string') {
+      throw new TelegramAuthError('Telegram init data hash is missing.');
+    }
+
+    if (!user || typeof user.id !== 'number') {
+      throw new TelegramAuthError('Telegram user information is missing.');
+    }
+
+    const now = options?.now?.() ?? Date.now();
+    const maxAgeSeconds = options?.maxAgeSeconds ?? TELEGRAM_AUTH_MAX_AGE_SECONDS;
+    const ageSeconds = Math.floor(now / 1000) - (typeof authDate === 'number' ? authDate : Math.floor(authDate.getTime() / 1000));
+
+    if (ageSeconds > maxAgeSeconds) {
+      throw new TelegramAuthError('Telegram init data is too old. Please reopen WebApp.');
+    }
+
+    if (ageSeconds < 0) {
+      throw new TelegramAuthError('Telegram auth date is in the future.');
+    }
+
+    return {
+      initData: rawData,
+      authDate: typeof authDate === 'number' ? authDate : Math.floor(authDate.getTime() / 1000),
+      hash,
+      user: {
+        id: user.id,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        username: user.username,
+        avatarUrl: user.photo_url,
+      },
+    };
+  } catch (error) {
+    if (error instanceof TelegramAuthError) {
+      throw error;
+    }
+    throw new TelegramAuthError(`Failed to get Telegram init data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+// Extend Window interface for Telegram WebApp
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: {
+        initData: string;
+        initDataUnsafe?: {
+          user?: {
+            id: number;
+            first_name: string;
+            last_name?: string;
+            username?: string;
+            photo_url?: string;
+          };
+          query_id?: string;
+          auth_date?: number | string;
+          hash?: string;
+        };
+        ready: () => void;
+        expand: () => void;
+        openInvoice: (url: string, callback: (status: string) => void) => void;
+        showAlert: (message: string) => void;
+        enableClosingConfirmation: () => void;
+        setHeaderColor: (color: string) => void;
+        setBackgroundColor: (color: string) => void;
+      };
+    };
+  }
+}
