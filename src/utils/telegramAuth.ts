@@ -32,6 +32,18 @@ export type TelegramWebApp = {
   showAlert: (message: string) => void;
 };
 
+// Новые типы для совместимости с @telegram-apps/sdk
+export type TelegramLaunchParams = {
+  initDataRaw?: string;
+  initData?: {
+    query_id?: string;
+    user?: TelegramWebAppUser;
+    auth_date?: number;
+    hash?: string;
+    [key: string]: unknown;
+  };
+};
+
 export type ValidatedTelegramAuthData = {
   initData: string;
   authDate: number;
@@ -50,6 +62,73 @@ export type TelegramAuthValidationOptions = {
   maxAgeSeconds?: number;
   /** Overrideable clock for testing. */
   now?: () => number;
+};
+
+// Функция для получения init данных с использованием @telegram-apps/sdk подхода
+export const getTelegramInitDataFromSDK = (
+  options?: TelegramAuthValidationOptions,
+): ValidatedTelegramAuthData => {
+  // Проверяем доступность WebApp API
+  if (!window.Telegram?.WebApp) {
+    throw new TelegramAuthError('Telegram WebApp API is not available.');
+  }
+
+  const webApp = window.Telegram.WebApp;
+  
+  // Получаем init данные напрямую из WebApp
+  const initDataRaw = webApp.initData;
+  if (!initDataRaw || typeof initDataRaw !== 'string') {
+    throw new TelegramAuthError('Telegram init data is missing.');
+  }
+
+  const unsafe = webApp.initDataUnsafe;
+  if (!unsafe || typeof unsafe !== 'object') {
+    throw new TelegramAuthError('Telegram init data is incomplete.');
+  }
+
+  const { auth_date: rawAuthDate, hash, user } = unsafe;
+
+  if (!hash || typeof hash !== 'string') {
+    throw new TelegramAuthError('Telegram init data hash is missing.');
+  }
+
+  if (!user || typeof user !== 'object' || typeof user.id !== 'number') {
+    throw new TelegramAuthError('Telegram user information is missing.');
+  }
+
+  const parsedAuthDate =
+    typeof rawAuthDate === 'string' ? Number.parseInt(rawAuthDate, 10) : rawAuthDate;
+
+  if (typeof parsedAuthDate !== 'number' || !Number.isFinite(parsedAuthDate)) {
+    throw new TelegramAuthError('Telegram auth date is invalid.');
+  }
+
+  const authDate = parsedAuthDate;
+
+  const now = options?.now?.() ?? Date.now();
+  const maxAgeSeconds = options?.maxAgeSeconds ?? TELEGRAM_AUTH_MAX_AGE_SECONDS;
+  const ageSeconds = Math.floor(now / 1000) - authDate;
+
+  if (ageSeconds > maxAgeSeconds) {
+    throw new TelegramAuthError('Telegram init data is too old. Please reopen the WebApp.');
+  }
+
+  if (ageSeconds < 0) {
+    throw new TelegramAuthError('Telegram auth date is in the future.');
+  }
+
+  return {
+    initData: initDataRaw,
+    authDate,
+    hash,
+    user: {
+      id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+      avatarUrl: user.photo_url,
+    },
+  };
 };
 
 export const getTelegramInitData = (

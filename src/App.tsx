@@ -1,4 +1,4 @@
-import { getTelegramInitData, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { getTelegramInitDataFromSDK, TelegramAuthError, type TelegramWebApp, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
 
 declare global {
@@ -370,7 +370,8 @@ function App() {
 
     let initPayload: ValidatedTelegramAuthData
     try {
-      initPayload = getTelegramInitData(webApp)
+      // Используем новый подход для получения init данных
+      initPayload = getTelegramInitDataFromSDK()
       console.log("[AUTH] Telegram init data validated successfully:", {
         hasInitData: !!initPayload.initData,
         authDate: initPayload.authDate,
@@ -798,13 +799,8 @@ function App() {
     setSyncStatus({ type: null, message: '' })
 
     try {
-      const webApp = window.Telegram?.WebApp
-      if (!webApp) {
-        throw new Error('Telegram WebApp API недоступен')
-      }
-
-      // Получаем актуальные данные из Telegram WebApp
-      const initPayload = getTelegramInitData(webApp)
+      // Используем новый подход для получения init данных
+      const initPayload = getTelegramInitDataFromSDK()
       
       // Обновляем данные пользователя в состоянии
       const updatedUser: TelegramUser = {
@@ -823,7 +819,8 @@ function App() {
       setSyncStatus({ type: 'success', message: 'Данные успешно синхронизированы' })
       
       // Показываем уведомление через Telegram WebApp API
-      if (webApp.showAlert) {
+      const webApp = window.Telegram?.WebApp
+      if (webApp?.showAlert) {
         webApp.showAlert('Данные профиля обновлены')
       }
     } catch (error) {
