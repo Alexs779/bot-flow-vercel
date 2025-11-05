@@ -760,6 +760,7 @@ button {
   max-height: calc(100vh - 120px);
   overflow-y: auto;
   grid-auto-rows: 1fr;
+  direction: rtl;
 }
 
 .event-card {
