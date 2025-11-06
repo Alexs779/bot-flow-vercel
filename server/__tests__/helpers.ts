@@ -14,7 +14,7 @@ export const buildSignedInitData = (botToken: string, payload: Record<string, st
     .map((key) => `${key}=${withoutHash[key]}`)
     .join("\n")
 
-  const secretKey = crypto.createHmac("sha256", botToken).update("WebAppData").digest()
+  const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest()
   const hash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex")
 
   params.set("hash", hash)
