@@ -448,69 +448,27 @@ function App() {
   }, [])
 
   useEffect(() => {
-    // Prevent double initialization in development (StrictMode) and HMR
     if (isInitializedRef.current) {
-      console.log('[APP INIT] Already initialized, skipping...')
       return
     }
     isInitializedRef.current = true
 
-    console.log('[APP INIT] Starting Telegram WebApp initialization...')
-    
-    const webApp = window.Telegram?.WebApp
-    if (!webApp) {
-      console.error("[APP INIT] Telegram WebApp API is not available in useEffect")
-      setAuthStatus("unsupported")
-      setAuthError("Telegram WebApp API is not available. Open the bot directly from Telegram.")
-      return
-    }
-
-    console.log("[APP INIT] Telegram WebApp found, initializing...")
-    webApp.ready()
-    webApp.expand() // Use full-height viewport provided by Telegram
-
     const cachedToken = sessionStorage.getItem(STORAGE_KEY_SESSION)
-    console.log("[APP INIT] Checking cached token:", {
-      hasCachedToken: !!cachedToken,
-      tokenLength: cachedToken?.length || 0
-    })
-    
     if (cachedToken) {
-      console.log("[APP INIT] Using cached session token")
       setSessionToken(cachedToken)
-      setAuthStatus("authenticated")
-      setAuthError(null)
-
-      const cachedUserRaw = sessionStorage.getItem(STORAGE_KEY_USER)
-      if (cachedUserRaw) {
+      setAuthStatus('authenticated')
+      const cachedUser = sessionStorage.getItem(STORAGE_KEY_USER)
+      if (cachedUser) {
         try {
-          const parsedUser = JSON.parse(cachedUserRaw) as TelegramUser
-          console.log("[APP INIT] Using cached user:", {
-            userId: parsedUser.id,
-            firstName: parsedUser.firstName
-          })
-          setTelegramUser(parsedUser)
-        } catch (parseError) {
-          console.warn("[APP INIT] Failed to parse cached Telegram user", parseError)
+          setTelegramUser(JSON.parse(cachedUser))
+        } catch {
           sessionStorage.removeItem(STORAGE_KEY_USER)
-          setTelegramUser(null)
         }
-      } else {
-        console.log("[APP INIT] No cached user found")
-        setTelegramUser(null)
       }
-
       return
     }
 
-    console.log("[APP INIT] No cached token found, starting authentication...")
     void authenticateWithTelegram()
-
-    // Cleanup function for HMR and component unmount
-    return () => {
-      console.log("[APP INIT] Cleanup - resetting initialization flag")
-      isInitializedRef.current = false
-    }
   }, [authenticateWithTelegram])
 
   // Load events from localStorage
