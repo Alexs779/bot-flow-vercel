@@ -1,6 +1,8 @@
-import { getTelegramInitDataWithSDK, TelegramAuthError, type ValidatedTelegramAuthData } from "./utils/telegramAuth"
+import { useLogStore } from "./utils/logStore"
+import { useEnvironmentCheck } from "./utils/environmentCheck"
+import LogPanel from "./components/LogPanel"
+import { TelegramAuthError, type ValidatedTelegramAuthData, getTelegramInitDataWithSDK } from "./utils/telegramAuth"
 import { RU } from "./i18n/ru"
-
 
 import {
   useCallback,
@@ -283,6 +285,12 @@ function App() {
   const [isInvoicePending, setIsInvoicePending] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  
+  const addLog = useLogStore((state) => state.addLog)
+  const logs = useLogStore((state) => state.logs)
+  
+  // Проверяем окружение при старте
+  useEnvironmentCheck()
 
   const ru = RU
 
@@ -338,43 +346,51 @@ function App() {
   const authenticateWithTelegram = useCallback(async () => {
     // Prevent duplicate authentication calls
     if (isAuthenticatingRef.current) {
-      console.log('[AUTH] Authentication already in progress, skipping...')
+      addLog('[AUTH] Authentication already in progress, skipping...', 'warning')
       return
     }
     isAuthenticatingRef.current = true
 
-    console.log('[AUTH] Starting Telegram authentication...')
+    addLog('[AUTH] Starting Telegram authentication...', 'info')
     
     const webApp = window.Telegram?.WebApp
     if (!webApp) {
-      console.error("[AUTH] Telegram WebApp API is not available")
+      addLog("[AUTH] Telegram WebApp API is not available", 'error')
       setAuthStatus("unsupported")
       setAuthError("Telegram WebApp API is not available. Open the bot directly from Telegram.")
       isAuthenticatingRef.current = false
       return
     }
 
-    console.log("[AUTH] Telegram WebApp is available:", {
+    addLog("[AUTH] Checking Telegram WebApp state...", 'info')
+    const initStatus = {
       hasInitData: !!webApp.initData,
       initDataLength: webApp.initData?.length || 0,
       hasInitDataUnsafe: !!webApp.initDataUnsafe,
       hasUser: !!webApp.initDataUnsafe?.user
-    })
+    }
+    
+    if (!initStatus.hasInitData || !initStatus.hasInitDataUnsafe || !initStatus.hasUser) {
+      addLog("[AUTH] Telegram WebApp initialization incomplete", 'error')
+      addLog(`InitData: ${initStatus.hasInitData}, Unsafe: ${initStatus.hasInitDataUnsafe}, User: ${initStatus.hasUser}`, 'error')
+    } else {
+      addLog("[AUTH] Telegram WebApp initialized successfully", 'success')
+    }
 
     let initPayload: ValidatedTelegramAuthData
     try {
       // Используем официальный SDK для получения init данных
       initPayload = await getTelegramInitDataWithSDK()
-      console.log("[AUTH] Telegram init data validated successfully:", {
-        hasInitData: !!initPayload.initData,
-        authDate: initPayload.authDate,
-        hasHash: !!initPayload.hash,
-        userId: initPayload.user.id
-      })
+      addLog("[AUTH] Telegram init data validated successfully", 'success')
+      addLog(`User ID: ${initPayload.user.id}, Auth Date: ${new Date(initPayload.authDate * 1000).toISOString()}`, 'info')
     } catch (error) {
-      console.error("[AUTH] Telegram init data validation failed", error)
+      const errorMessage = error instanceof TelegramAuthError ? error.message : "Failed to validate Telegram init data"
+      addLog(`[AUTH] ${errorMessage}`, 'error')
+      if (error instanceof Error) {
+        addLog(`Error details: ${error.message}`, 'error')
+      }
       setAuthStatus("error")
-      setAuthError(error instanceof TelegramAuthError ? error.message : "Failed to validate Telegram init data.")
+      setAuthError(errorMessage)
       isAuthenticatingRef.current = false
       return
     }
@@ -392,11 +408,7 @@ function App() {
         body: JSON.stringify({ initData: initPayload.initData }),
       })
 
-      console.log("[AUTH] Auth response received:", {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText
-      })
+      addLog(`[AUTH] Response received (${response.status} ${response.statusText})`, response.ok ? 'success' : 'error')
 
       const payload = await response.json().catch(() => ({})) as AuthResponse
       console.log("[AUTH] Auth response payload:", payload)
@@ -1329,64 +1341,17 @@ const renderEvents = () => (
           </div>
         </div>
       ) : null}
-      {isLogPanelOpen ? (
-        <div className="log-panel" role="dialog" aria-modal="true" aria-labelledby="log-panel-title" id="logs-panel">
-          <button
-            type="button"
-            className="log-panel__backdrop"
-            aria-label={ru.common.logsClose}
-            onClick={() => setIsLogPanelOpen(false)}
-          />
-          <div className="log-panel__content">
-            <header className="log-panel__header">
-              <h2 className="log-panel__title" id="log-panel-title">{ru.common.logsTitle}</h2>
-              <button
-                type="button"
-                className="log-panel__close"
-                onClick={() => setIsLogPanelOpen(false)}
-              >
-                {ru.common.logsClose}
-              </button>
-            </header>
-            <div className="log-panel__body">
-              <dl className="log-panel__meta">
-                <div>
-                  <dt>{ru.common.logsAuthStatus}</dt>
-                  <dd style={{ color: authStatus === 'authenticated' ? 'green' : authStatus === 'error' ? 'red' : 'orange' }}>
-                    {authStatus}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{ru.common.logsSession}</dt>
-                  <dd style={{ wordBreak: 'break-all', fontSize: '10px' }}>
-                    {sessionToken ?? "-"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{ru.common.logsError}</dt>
-                  <dd style={{ color: 'red', wordBreak: 'break-word' }}>
-                    {authError ?? "-"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>API URL</dt>
-                  <dd style={{ wordBreak: 'break-all', fontSize: '10px' }}>
-                    {API_BASE_URL}
-                  </dd>
-                </div>
-              </dl>
-              <section className="log-panel__section">
-                <h3 className="log-panel__section-title">Telegram</h3>
-                {telegramUser ? (
-                  <pre className="log-panel__code">{JSON.stringify(telegramUser, null, 2)}</pre>
-                ) : (
-                  <p className="log-panel__empty">{ru.common.logsEmpty}</p>
-                )}
-              </section>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {isLogPanelOpen && (
+        <LogPanel
+          logs={logs}
+          onClose={() => setIsLogPanelOpen(false)}
+          authStatus={authStatus}
+          authError={authError}
+          sessionToken={sessionToken}
+          apiBaseUrl={API_BASE_URL}
+          telegramUser={telegramUser}
+        />
+      )}
     </div>
   )
 }
