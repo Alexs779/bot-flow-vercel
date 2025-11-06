@@ -203,49 +203,51 @@ export const getTelegramInitDataWithSDK = async (
   options?: TelegramAuthValidationOptions,
 ): Promise<ValidatedTelegramAuthData> => {
   try {
-    // Импортируем SDK динамически, чтобы избежать проблем с SSR
-    const { init, initDataRaw, initDataState } = await import('@telegram-apps/sdk');
-    
-    // Инициализируем SDK
-    init();
-    
-    // Получаем сырые init данные
-    const rawData = initDataRaw();
-    if (!rawData) {
-      throw new TelegramAuthError('Telegram init data is missing.');
+    // Официальная рекомендация SDK — использовать retrieveLaunchParams
+    const { retrieveLaunchParams } = await import('@telegram-apps/sdk')
+    const { initDataRaw, initData } = retrieveLaunchParams()
+
+    // Если SDK не вернул данные (редкие случаи или нестандартный запуск),
+    // пробуем собрать через window.Telegram.WebApp как запасной вариант.
+    if (!initDataRaw || typeof initDataRaw !== 'string') {
+      const webApp = window.Telegram?.WebApp
+      if (webApp) {
+        return getTelegramInitData(webApp, options)
+      }
+      throw new TelegramAuthError('Telegram init data is missing.')
     }
 
-    // Получаем структурированные данные
-    const state = initDataState();
-    if (!state || !state.user) {
-      throw new TelegramAuthError('Telegram user information is missing.');
-    }
-
-    const { auth_date: authDate, hash, user } = state;
+    const data = (initData as TelegramInitDataUnsafe | undefined) ?? {}
+    const { auth_date: rawAuthDate, hash, user } = data
 
     if (!hash || typeof hash !== 'string') {
-      throw new TelegramAuthError('Telegram init data hash is missing.');
+      throw new TelegramAuthError('Telegram init data hash is missing.')
+    }
+    if (!user || typeof user !== 'object' || typeof user.id !== 'number') {
+      throw new TelegramAuthError('Telegram user information is missing.')
     }
 
-    if (!user || typeof user.id !== 'number') {
-      throw new TelegramAuthError('Telegram user information is missing.');
+    const parsedAuthDate =
+      typeof rawAuthDate === 'string' ? Number.parseInt(rawAuthDate, 10) : rawAuthDate
+
+    if (typeof parsedAuthDate !== 'number' || !Number.isFinite(parsedAuthDate)) {
+      throw new TelegramAuthError('Telegram auth date is invalid.')
     }
 
-    const now = options?.now?.() ?? Date.now();
-    const maxAgeSeconds = options?.maxAgeSeconds ?? TELEGRAM_AUTH_MAX_AGE_SECONDS;
-    const ageSeconds = Math.floor(now / 1000) - (typeof authDate === 'number' ? authDate : Math.floor(authDate.getTime() / 1000));
+    const now = options?.now?.() ?? Date.now()
+    const maxAgeSeconds = options?.maxAgeSeconds ?? TELEGRAM_AUTH_MAX_AGE_SECONDS
+    const ageSeconds = Math.floor(now / 1000) - parsedAuthDate
 
     if (ageSeconds > maxAgeSeconds) {
-      throw new TelegramAuthError('Telegram init data is too old. Please reopen WebApp.');
+      throw new TelegramAuthError('Telegram init data is too old. Please reopen the WebApp.')
     }
-
     if (ageSeconds < 0) {
-      throw new TelegramAuthError('Telegram auth date is in the future.');
+      throw new TelegramAuthError('Telegram auth date is in the future.')
     }
 
     return {
-      initData: rawData,
-      authDate: typeof authDate === 'number' ? authDate : Math.floor(authDate.getTime() / 1000),
+      initData: initDataRaw,
+      authDate: parsedAuthDate,
       hash,
       user: {
         id: user.id,
@@ -254,12 +256,12 @@ export const getTelegramInitDataWithSDK = async (
         username: user.username,
         avatarUrl: user.photo_url,
       },
-    };
+    }
   } catch (error) {
     if (error instanceof TelegramAuthError) {
-      throw error;
+      throw error
     }
-    throw new TelegramAuthError(`Failed to get Telegram init data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new TelegramAuthError(`Failed to get Telegram init data: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 };
 

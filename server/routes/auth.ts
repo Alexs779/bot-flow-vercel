@@ -18,7 +18,17 @@ export const createAuthRouter = (config: AuthRouterConfig) => {
   const router = Router()
 
   router.post("/telegram", async (req: Request, res: Response) => {
-    const result = await authenticateTelegramUser(req.body?.initData, config)
+    // Поддержка обоих способов передачи initData из официальной документации:
+    // 1) Authorization: "tma <initDataRaw>"
+    // 2) Тело запроса: { initData: "<initDataRaw>" }
+    const authHeader = req.get("authorization") ?? ""
+    let initData: unknown = req.body?.initData
+
+    if (typeof authHeader === "string" && authHeader.toLowerCase().startsWith("tma ")) {
+      initData = authHeader.slice(4).trim()
+    }
+
+    const result = await authenticateTelegramUser(initData, config)
     res.status(result.status).json(result.body)
   })
 
